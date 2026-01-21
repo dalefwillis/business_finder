@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config import config
+from ..models.listing import ListingCreate
 from .schema import init_db
 
 
@@ -113,6 +114,62 @@ def save_listing(
     )
     conn.commit()
     return listing_id
+
+
+def save_listing_from_model(listing: ListingCreate) -> tuple[str, bool]:
+    """Save a listing from a ListingCreate model.
+
+    Args:
+        listing: The ListingCreate model to save.
+
+    Returns:
+        Tuple of (listing_id, is_new) where is_new is True if this was
+        a new listing, False if it was an update to an existing one.
+    """
+    # Check if listing already exists
+    existing = get_listing_by_external_id(listing.source_id, listing.external_id)
+    is_new = existing is None
+
+    listing_id = save_listing(
+        source_id=listing.source_id,
+        external_id=listing.external_id,
+        url=listing.url,
+        title=listing.title,
+        category=listing.category,
+        asking_price=listing.asking_price,
+        annual_revenue=listing.annual_revenue,
+        customers=listing.customers,
+        launched_year=listing.launched_year,
+        posted_at=listing.posted_at,
+        description=listing.description,
+        raw_data=listing.raw_data,
+    )
+
+    # If it was an update, return the existing ID
+    if not is_new and existing:
+        listing_id = existing["id"]
+
+    return listing_id, is_new
+
+
+def get_listing_by_external_id(source_id: str, external_id: str) -> dict[str, Any] | None:
+    """Get a listing by source and external ID.
+
+    Args:
+        source_id: Source identifier (e.g., 'microns')
+        external_id: ID from the source platform
+
+    Returns:
+        Listing data as dict, or None if not found.
+    """
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM listings WHERE source_id = ? AND external_id = ?",
+        (source_id, external_id),
+    ).fetchone()
+    if row is None:
+        return None
+    return dict(row)
 
 
 def get_listing(listing_id: str) -> dict[str, Any] | None:
