@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from rich.console import Console
 from rich.table import Table
 
+from business_finder.config import config, FilterConfig
 from business_finder.db.operations import (
     save_listing_from_model,
     get_all_listings,
@@ -24,9 +25,7 @@ console = Console()
 
 async def run_scrape(
     max_pages: int | None = None,
-    min_revenue: int | None = None,
-    max_price: int | None = None,
-    skip_blacklist: bool = False,
+    filters: FilterConfig | None = None,
     dry_run: bool = False,
     verbose: bool = False,
 ) -> dict:
@@ -34,9 +33,7 @@ async def run_scrape(
 
     Args:
         max_pages: Maximum number of index pages to scrape (None = all)
-        min_revenue: Minimum annual revenue in cents to include
-        max_price: Maximum asking price in cents to include
-        skip_blacklist: If True, don't apply category blacklist
+        filters: Filter configuration (uses central config.filters if None)
         dry_run: If True, scrape but don't save to DB
         verbose: If True, print detailed progress
 
@@ -45,22 +42,27 @@ async def run_scrape(
     """
     scraper = MicronsScraper(headless=True)
 
-    # Determine blacklist
-    category_blacklist = None if skip_blacklist else scraper.CATEGORY_BLACKLIST
+    # Use central config if no filters provided
+    if filters is None:
+        filters = config.filters
 
     console.print(f"\n[bold blue]Starting Microns.io scrape[/bold blue]")
     console.print(f"  Max pages: {max_pages or 'all'}")
-    console.print(f"  Min revenue: ${min_revenue/100:,.0f}" if min_revenue else "  Min revenue: none")
-    console.print(f"  Max price: ${max_price/100:,.0f}" if max_price else "  Max price: none")
-    console.print(f"  Category blacklist: {'disabled' if skip_blacklist else 'enabled'}")
+    if filters.min_annual_revenue:
+        console.print(f"  Min revenue: ${filters.min_annual_revenue/100:,.0f}")
+    else:
+        console.print(f"  Min revenue: none")
+    if filters.max_asking_price:
+        console.print(f"  Max price: ${filters.max_asking_price/100:,.0f}")
+    else:
+        console.print(f"  Max price: none")
+    console.print(f"  Category blacklist: {len(filters.category_blacklist)} categories")
     console.print(f"  Dry run: {dry_run}")
     console.print()
 
     # Run the scrape with filtering
     result, skipped = await scraper.scrape_with_filter(
-        min_revenue=min_revenue,
-        max_price=max_price,
-        category_blacklist=category_blacklist,
+        filters=filters,
         max_pages=max_pages,
     )
 
@@ -103,11 +105,11 @@ async def run_scrape(
         console.print(f"\n[dim]Sample of skipped listings:[/dim]")
         for card in skipped[:5]:
             reason = []
-            if category_blacklist and card.category in category_blacklist:
+            if filters.category_blacklist and card.category and card.category.lower() in [c.lower() for c in filters.category_blacklist]:
                 reason.append(f"blacklisted category: {card.category}")
-            if min_revenue and (card.annual_revenue is None or card.annual_revenue < min_revenue):
+            if filters.min_annual_revenue and (card.annual_revenue is None or card.annual_revenue < filters.min_annual_revenue):
                 reason.append(f"low revenue: ${(card.annual_revenue or 0)/100:,.0f}")
-            if max_price and (card.asking_price is None or card.asking_price > max_price):
+            if filters.max_asking_price and (card.asking_price is None or card.asking_price > filters.max_asking_price):
                 reason.append(f"high price: ${(card.asking_price or 0)/100:,.0f}")
             console.print(f"  [dim]- {card.title}: {', '.join(reason)}[/dim]")
         if len(skipped) > 5:
@@ -194,9 +196,17 @@ def main():
 
     args = parser.parse_args()
 
+    # Build filter config from CLI args (overriding central defaults)
     # Convert dollars to cents for revenue/price filters
-    min_revenue = args.min_revenue * 100 if args.min_revenue else None
-    max_price = args.max_price * 100 if args.max_price else None
+    min_revenue_cents = args.min_revenue * 100 if args.min_revenue else None
+    max_price_cents = args.max_price * 100 if args.max_price else None
+
+    # Create filters with CLI overrides
+    filters = config.filters.with_overrides(
+        min_annual_revenue=min_revenue_cents,
+        max_asking_price=max_price_cents,
+        category_blacklist=[] if args.skip_blacklist else None,  # Empty list disables blacklist
+    )
 
     try:
         if args.summary_only:
@@ -204,9 +214,7 @@ def main():
         else:
             stats = asyncio.run(run_scrape(
                 max_pages=args.max_pages,
-                min_revenue=min_revenue,
-                max_price=max_price,
-                skip_blacklist=args.skip_blacklist,
+                filters=filters,
                 dry_run=args.dry_run,
                 verbose=args.verbose,
             ))

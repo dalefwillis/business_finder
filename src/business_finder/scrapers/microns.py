@@ -18,7 +18,7 @@ from datetime import datetime
 
 from .base import BaseScraper, ScraperConfig, ScrapeError, ScrapeResult
 from ..models.listing import ListingCreate
-from ..config import config
+from ..config import config, FilterConfig
 
 
 @dataclass
@@ -99,17 +99,6 @@ class MicronsScraper(BaseScraper):
         "Agency",            # 8 (2.3%)
         "Content",           # 5 (1.4%)
         "Community",         # 5 (1.4%)
-    ]
-
-    # Blacklisted categories - content/product businesses, not software
-    CATEGORY_BLACKLIST = [
-        "Newsletter",
-        "E-commerce",
-        "Marketplace",
-        "Directory",
-        "Agency",
-        "Content",
-        "Community",
     ]
 
     def __init__(self, headless: bool = True):
@@ -502,24 +491,21 @@ class MicronsScraper(BaseScraper):
 
     async def scrape_with_filter(
         self,
-        min_revenue: int | None = None,
-        max_price: int | None = None,
-        category_blacklist: list[str] | None = None,
+        filters: FilterConfig | None = None,
         max_pages: int | None = None,
     ) -> tuple[ScrapeResult, list[ListingCard]]:
         """Scrape listings that pass filters, track skipped ones.
 
         Args:
-            min_revenue: Minimum annual revenue in cents
-            max_price: Maximum asking price in cents
-            category_blacklist: Categories to exclude (default: CATEGORY_BLACKLIST)
+            filters: Filter configuration (uses central config.filters if None)
             max_pages: Optional limit on pages to scan
 
         Returns:
             Tuple of (ScrapeResult with listings/errors, skipped cards).
         """
-        if category_blacklist is None:
-            category_blacklist = self.CATEGORY_BLACKLIST
+        # Use central config filters if none provided
+        if filters is None:
+            filters = config.filters
 
         await self.setup()
         try:
@@ -530,7 +516,11 @@ class MicronsScraper(BaseScraper):
             to_scrape = []
             skipped = []
             for card in cards:
-                if card.passes_filter(min_revenue, max_price, category_blacklist):
+                if card.passes_filter(
+                    min_revenue=filters.min_annual_revenue,
+                    max_price=filters.max_asking_price,
+                    category_blacklist=filters.category_blacklist,
+                ):
                     to_scrape.append(card)
                 else:
                     skipped.append(card)
