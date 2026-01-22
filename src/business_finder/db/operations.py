@@ -188,6 +188,72 @@ def get_listing(listing_id: str) -> dict[str, Any] | None:
     return dict(row)
 
 
+def get_known_external_ids(source_id: str) -> set[str]:
+    """Get all external IDs we already have for a source.
+
+    Useful for scrapers to skip re-visiting known listings.
+
+    Args:
+        source_id: Source identifier (e.g., 'microns')
+
+    Returns:
+        Set of external IDs.
+    """
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT external_id FROM listings WHERE source_id = ?",
+        (source_id,),
+    ).fetchall()
+    return {row["external_id"] for row in rows}
+
+
+def get_known_urls(source_id: str) -> set[str]:
+    """Get all URLs we already have for a source.
+
+    Useful for scrapers to skip re-visiting known listings.
+
+    Args:
+        source_id: Source identifier (e.g., 'microns')
+
+    Returns:
+        Set of URLs.
+    """
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT url FROM listings WHERE source_id = ?",
+        (source_id,),
+    ).fetchall()
+    return {row["url"] for row in rows}
+
+
+def get_stale_listings(
+    source_id: str,
+    older_than_days: int = 7,
+) -> list[dict[str, Any]]:
+    """Get listings that haven't been seen recently.
+
+    Useful for identifying listings that need refreshing.
+
+    Args:
+        source_id: Source identifier
+        older_than_days: Consider stale if last_seen_at is older than this
+
+    Returns:
+        List of listing dicts that are stale.
+    """
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT * FROM listings
+        WHERE source_id = ?
+        AND last_seen_at < datetime('now', ?)
+        ORDER BY last_seen_at ASC
+        """,
+        (source_id, f"-{older_than_days} days"),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_all_listings(source_id: str | None = None) -> list[dict[str, Any]]:
     """Get all listings, optionally filtered by source.
 

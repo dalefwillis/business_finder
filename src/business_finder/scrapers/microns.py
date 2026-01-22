@@ -19,6 +19,7 @@ from datetime import datetime
 from .base import BaseScraper, ScraperConfig, ScrapeError, ScrapeResult
 from ..models.listing import ListingCreate
 from ..config import config, FilterConfig
+from ..db.operations import get_known_external_ids
 
 
 @dataclass
@@ -493,29 +494,43 @@ class MicronsScraper(BaseScraper):
         self,
         filters: FilterConfig | None = None,
         max_pages: int | None = None,
-    ) -> tuple[ScrapeResult, list[ListingCard]]:
+        skip_known: bool = False,
+    ) -> tuple[ScrapeResult, list[ListingCard], list[ListingCard]]:
         """Scrape listings that pass filters, track skipped ones.
 
         Args:
             filters: Filter configuration (uses central config.filters if None)
             max_pages: Optional limit on pages to scan
+            skip_known: If True, skip listings already in the database
 
         Returns:
-            Tuple of (ScrapeResult with listings/errors, skipped cards).
+            Tuple of (ScrapeResult with listings/errors, filter-skipped cards, already-known cards).
         """
         # Use central config filters if none provided
         if filters is None:
             filters = config.filters
+
+        # Get known external_ids if we're skipping known listings
+        known_ids: set[str] = set()
+        if skip_known:
+            known_ids = get_known_external_ids(self.config.source_id)
 
         await self.setup()
         try:
             # Phase 1: Get all cards
             cards = await self.get_listing_cards(max_pages=max_pages)
 
-            # Phase 2: Filter
+            # Phase 2: Filter and skip known
             to_scrape = []
-            skipped = []
+            skipped_filter = []
+            skipped_known = []
             for card in cards:
+                # Check if already known
+                if skip_known and card.slug in known_ids:
+                    skipped_known.append(card)
+                    continue
+
+                # Check filters
                 if card.passes_filter(
                     min_revenue=filters.min_annual_revenue,
                     max_price=filters.max_asking_price,
@@ -523,7 +538,7 @@ class MicronsScraper(BaseScraper):
                 ):
                     to_scrape.append(card)
                 else:
-                    skipped.append(card)
+                    skipped_filter.append(card)
 
             # Phase 3: Scrape passing listings with rate limiting
             result = ScrapeResult()
@@ -536,6 +551,6 @@ class MicronsScraper(BaseScraper):
                 # Be polite to the server
                 await asyncio.sleep(config.request_delay_seconds)
 
-            return result, skipped
+            return result, skipped_filter, skipped_known
         finally:
             await self.teardown()

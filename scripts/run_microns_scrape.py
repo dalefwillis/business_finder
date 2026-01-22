@@ -26,6 +26,7 @@ console = Console()
 async def run_scrape(
     max_pages: int | None = None,
     filters: FilterConfig | None = None,
+    skip_known: bool = False,
     dry_run: bool = False,
     verbose: bool = False,
 ) -> dict:
@@ -34,6 +35,7 @@ async def run_scrape(
     Args:
         max_pages: Maximum number of index pages to scrape (None = all)
         filters: Filter configuration (uses central config.filters if None)
+        skip_known: If True, skip listings already in the database
         dry_run: If True, scrape but don't save to DB
         verbose: If True, print detailed progress
 
@@ -57,23 +59,28 @@ async def run_scrape(
     else:
         console.print(f"  Max price: none")
     console.print(f"  Category blacklist: {len(filters.category_blacklist)} categories")
+    console.print(f"  Skip known: {skip_known}")
     console.print(f"  Dry run: {dry_run}")
     console.print()
 
     # Run the scrape with filtering
-    result, skipped = await scraper.scrape_with_filter(
+    result, skipped_filter, skipped_known = await scraper.scrape_with_filter(
         filters=filters,
         max_pages=max_pages,
+        skip_known=skip_known,
     )
 
     console.print(f"[green]Scrape complete:[/green] {result.success_count} listings scraped, {result.error_count} errors")
-    console.print(f"[dim]Skipped {len(skipped)} listings that didn't pass filters[/dim]")
+    if skipped_known:
+        console.print(f"[dim]Skipped {len(skipped_known)} already-known listings[/dim]")
+    console.print(f"[dim]Skipped {len(skipped_filter)} listings that didn't pass filters[/dim]")
 
     # Save to database
     stats = {
         "scraped": result.success_count,
         "errors": result.error_count,
-        "skipped": len(skipped),
+        "skipped_filter": len(skipped_filter),
+        "skipped_known": len(skipped_known),
         "new": 0,
         "updated": 0,
     }
@@ -101,9 +108,9 @@ async def run_scrape(
             console.print(f"    {err.error_type}: {err.error_message}")
 
     # Show sample of skipped if verbose
-    if verbose and skipped:
-        console.print(f"\n[dim]Sample of skipped listings:[/dim]")
-        for card in skipped[:5]:
+    if verbose and skipped_filter:
+        console.print(f"\n[dim]Sample of filter-skipped listings:[/dim]")
+        for card in skipped_filter[:5]:
             reason = []
             if filters.category_blacklist and card.category and card.category.lower() in [c.lower() for c in filters.category_blacklist]:
                 reason.append(f"blacklisted category: {card.category}")
@@ -112,8 +119,8 @@ async def run_scrape(
             if filters.max_asking_price and (card.asking_price is None or card.asking_price > filters.max_asking_price):
                 reason.append(f"high price: ${(card.asking_price or 0)/100:,.0f}")
             console.print(f"  [dim]- {card.title}: {', '.join(reason)}[/dim]")
-        if len(skipped) > 5:
-            console.print(f"  [dim]... and {len(skipped) - 5} more[/dim]")
+        if len(skipped_filter) > 5:
+            console.print(f"  [dim]... and {len(skipped_filter) - 5} more[/dim]")
 
     return stats
 
@@ -179,6 +186,11 @@ def main():
         help="Don't apply category blacklist (include all categories)",
     )
     parser.add_argument(
+        "--skip-known",
+        action="store_true",
+        help="Skip listings already in the database (only scrape new ones)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Scrape but don't save to database",
@@ -215,6 +227,7 @@ def main():
             stats = asyncio.run(run_scrape(
                 max_pages=args.max_pages,
                 filters=filters,
+                skip_known=args.skip_known,
                 dry_run=args.dry_run,
                 verbose=args.verbose,
             ))
@@ -222,11 +235,12 @@ def main():
             # Show final summary
             console.print("\n" + "=" * 50)
             console.print("[bold]Final Statistics:[/bold]")
-            console.print(f"  Scraped: {stats['scraped']}")
-            console.print(f"  New:     {stats['new']}")
-            console.print(f"  Updated: {stats['updated']}")
-            console.print(f"  Skipped: {stats['skipped']}")
-            console.print(f"  Errors:  {stats['errors']}")
+            console.print(f"  Scraped:        {stats['scraped']}")
+            console.print(f"  New:            {stats['new']}")
+            console.print(f"  Updated:        {stats['updated']}")
+            console.print(f"  Skipped (filter): {stats['skipped_filter']}")
+            console.print(f"  Skipped (known):  {stats['skipped_known']}")
+            console.print(f"  Errors:         {stats['errors']}")
 
             if not args.dry_run:
                 show_summary()
