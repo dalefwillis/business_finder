@@ -50,6 +50,8 @@ def save_listing(
     launched_year: int | None = None,
     posted_at: datetime | None = None,
     description: str | None = None,
+    location: str | None = None,
+    country: str | None = None,
     raw_data: dict[str, Any] | None = None,
 ) -> str:
     """Save or update a listing.
@@ -66,6 +68,8 @@ def save_listing(
         launched_year: Year business was launched
         posted_at: When listing was posted to platform
         description: Listing description
+        location: Location (city, state, etc.)
+        country: Country code or name
         raw_data: Raw scraped data as dict
 
     Returns:
@@ -79,9 +83,9 @@ def save_listing(
         INSERT INTO listings (
             id, source_id, external_id, url, title, category,
             asking_price, annual_revenue, customers, launched_year,
-            posted_at, description, raw_data, last_seen_at
+            posted_at, description, location, country, raw_data, last_seen_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(source_id, external_id) DO UPDATE SET
             url = excluded.url,
             title = excluded.title,
@@ -92,6 +96,8 @@ def save_listing(
             launched_year = excluded.launched_year,
             posted_at = excluded.posted_at,
             description = excluded.description,
+            location = excluded.location,
+            country = excluded.country,
             raw_data = excluded.raw_data,
             updated_at = CURRENT_TIMESTAMP,
             last_seen_at = CURRENT_TIMESTAMP
@@ -109,6 +115,8 @@ def save_listing(
             launched_year,
             posted_at.isoformat() if posted_at else None,
             description,
+            location,
+            country,
             json.dumps(raw_data) if raw_data else None,
         ),
     )
@@ -142,6 +150,8 @@ def save_listing_from_model(listing: ListingCreate) -> tuple[str, bool]:
         launched_year=listing.launched_year,
         posted_at=listing.posted_at,
         description=listing.description,
+        location=listing.location,
+        country=listing.country,
         raw_data=listing.raw_data,
     )
 

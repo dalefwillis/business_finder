@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS listings (
     launched_year INTEGER,
     posted_at TIMESTAMP,
     description TEXT,
+    location TEXT,
+    country TEXT,
     raw_data JSON,
     first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

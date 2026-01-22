@@ -454,40 +454,50 @@ Starting with Option A (simplest), can evolve.
 
 ## Implementation Phases
 
-### Phase 0: Setup & Exploration
-- [ ] Project structure, dependencies (Poetry)
-- [ ] SQLite database initialization
-- [ ] Basic config management
-- [ ] Use Claude Chrome to explore 2-3 sources, document patterns
+### Phase 0: Setup & Exploration ✅
+- [x] Project structure, dependencies (Poetry)
+- [x] SQLite database initialization
+- [x] Basic config management
+- [x] Use Claude Chrome to explore 2-3 sources, document patterns
 
-### Phase 1: Single Source MVP
-- [ ] Playwright scraper for one Tier B source (Flippa or Microns - no auth)
-- [ ] Parser to extract listing data
-- [ ] Store in database
-- [ ] Basic scoring (hard gates + available dimensions)
-- [ ] CLI to view listings and scores
+### Phase 1: Single Source MVP ✅
+- [x] Playwright scraper for Microns.io (no auth)
+- [x] Parser to extract listing data
+- [x] Store in database with deduplication
+- [x] Central FilterConfig for cross-scraper consistency
+- [x] Skip-known for incremental scraping
+- [x] Error collection without failing entire scrape
+- [ ] Basic scoring (hard gates + available dimensions) - deferred to Phase 2.5
 
-### Phase 2: Slack Integration
+### Phase 2: Additional Scrapers (IN PROGRESS)
+- [ ] Flippa scraper (filter: SaaS, US-only)
+- [ ] Acquire.com scraper
+- [ ] Add location/country to schema and filtering
+
+### Phase 2.5: Processing Pipeline (NEW)
+- [ ] Cross-platform deduplication (detect same business on multiple sites)
+  - Match by: domain, company name similarity, revenue+price combo
+  - Store canonical listing with links to all sources
+- [ ] Scoring engine (hard gates + dimensions from SCORING_FRAMEWORK.md)
+- [ ] Data enrichment hooks (tech stack, traffic estimates, domain age)
+
+### Phase 3: Slack Integration
 - [ ] Slack app setup
 - [ ] High-score immediate notification
-- [ ] Daily digest
-- [ ] Reaction-based feedback capture
-
-### Phase 3: Additional Sources
-- [ ] Add remaining Tier B sources
-- [ ] Add Tier A sources (BizBuySell, BizQuest)
-- [ ] Source-specific scheduling
+- [ ] Daily digest of new listings
+- [ ] Reaction-based feedback capture (👍/👎/🤔)
+- [ ] Feedback storage and reporting
 
 ### Phase 4: Refinement
 - [ ] Local LLM integration (Ollama) for description parsing
-- [ ] Feedback analysis
-- [ ] Scoring weight adjustments
+- [ ] Feedback analysis to tune scoring weights
+- [ ] Scheduled runs (cron/systemd)
 - [ ] Docker packaging
 
 ### Phase 5: Future Enhancements
 - [ ] Acquire.com with subscription (full access)
+- [ ] Tier A sources (BizBuySell, BizQuest)
 - [ ] Broker site scrapers
-- [ ] More sophisticated feedback loop
 - [ ] Simple web UI for browsing/filtering
 
 ---

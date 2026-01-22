@@ -34,11 +34,19 @@ class FilterConfig(BaseModel):
         description="Categories to exclude (case-insensitive matching)"
     )
 
+    # Location filter - US only for now
+    # Don't want to deal with international acquisitions at this price point
+    allowed_countries: list[str] = Field(
+        default=["US", "USA", "United States"],
+        description="Allowed country codes/names (case-insensitive). Empty list = no filter."
+    )
+
     def with_overrides(
         self,
         min_annual_revenue: int | None = None,
         max_asking_price: int | None = None,
         category_blacklist: list[str] | None = None,
+        allowed_countries: list[str] | None = None,
     ) -> "FilterConfig":
         """Create a new FilterConfig with optional overrides.
 
@@ -48,6 +56,7 @@ class FilterConfig(BaseModel):
             min_annual_revenue=min_annual_revenue if min_annual_revenue is not None else self.min_annual_revenue,
             max_asking_price=max_asking_price if max_asking_price is not None else self.max_asking_price,
             category_blacklist=category_blacklist if category_blacklist is not None else self.category_blacklist,
+            allowed_countries=allowed_countries if allowed_countries is not None else self.allowed_countries,
         )
 
 

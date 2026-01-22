@@ -6,7 +6,9 @@ My acquisition criteria:
 
 **Target Profile**
 - Cash flow: $300k–$1.5M (major acquisitions)
-- Geography: within driving distance of Madison for larger deals; nationwide for smaller SaaS
+- Geography: **US-only** (no international acquisitions at this price point)
+  - Within driving distance of Madison for larger deals
+  - Nationwide for smaller SaaS
 - Valuation expectation: 2–4x annual profit
 - Prefer: tech, software, PCB manufacturing, upstream value creation
 

@@ -25,6 +25,8 @@ class ListingCreate(BaseModel):
     launched_year: int | None = Field(None, description="Year the business was launched")
     posted_at: datetime | None = Field(None, description="When listing was posted to platform")
     description: str | None = Field(None, description="Listing description")
+    location: str | None = Field(None, description="Location (city, state, etc.)")
+    country: str | None = Field(None, description="Country code or name (e.g., 'US', 'United States')")
     raw_data: dict[str, Any] | None = Field(None, description="Raw scraped data")
 
 
