@@ -186,9 +186,9 @@ def main():
         help="Don't apply category blacklist (include all categories)",
     )
     parser.add_argument(
-        "--skip-known",
+        "--refresh",
         action="store_true",
-        help="Skip listings already in the database (only scrape new ones)",
+        help="Re-scrape all listings, even ones already in the database",
     )
     parser.add_argument(
         "--dry-run",
@@ -227,7 +227,7 @@ def main():
             stats = asyncio.run(run_scrape(
                 max_pages=args.max_pages,
                 filters=filters,
-                skip_known=args.skip_known,
+                skip_known=not args.refresh,
                 dry_run=args.dry_run,
                 verbose=args.verbose,
             ))
