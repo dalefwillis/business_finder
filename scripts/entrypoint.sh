@@ -1,6 +1,6 @@
 #!/bin/bash
 # Entrypoint script for scheduled scraper jobs
-# Adds a random delay before running the actual command
+# Loads .env and adds a random 10-300s delay before running the command
 
 set -e
 
@@ -11,12 +11,10 @@ if [ -f /app/.env ]; then
     set +a
 fi
 
-# Random delay between 10-300 seconds (if RANDOM_DELAY is set)
-if [ -n "$RANDOM_DELAY" ]; then
-    delay=$((RANDOM % 290 + 10))
-    echo "Waiting ${delay}s before starting (random delay)..."
-    sleep "$delay"
-fi
+# Random delay between 10-300 seconds
+delay=$((RANDOM % 290 + 10))
+echo "Waiting ${delay}s before starting (random delay)..."
+sleep "$delay"
 
 # Execute the command passed as arguments
 exec "$@"

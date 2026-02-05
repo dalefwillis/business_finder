@@ -47,5 +47,7 @@ RUN chmod +x /app/scripts/*.sh
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+
 # Default to Acquire scraper (override in docker-compose)
 CMD ["python", "scripts/run_acquire_scrape.py", "--verbose"]
